@@ -7,6 +7,7 @@ from readerwriterlock import rwlock
 from gfs.common.constants import (
     ChunkHandle,
     ChunkVersion,
+    Namespace,
 )
 from gfs.common.utils import (
     PathInfo,
@@ -134,3 +135,52 @@ class NamespaceMetadata:
             )
 
         return True
+
+
+@dataclass
+class Master:
+    server: ServerInfo
+    storage_dir: str
+
+    # namespace name -> namespace metadata
+    namespaces: dict[
+        Namespace,
+        NamespaceMetadata,
+    ] = field(
+        default_factory=dict,
+    )
+
+    namespaces_lock: rwlock.RWLockFair = field(
+        default_factory=rwlock.RWLockFair,
+    )
+
+    # chunk handle -> chunk metadata
+    chunks: dict[
+        ChunkHandle,
+        ChunkMetadata,
+    ] = field(
+        default_factory=dict,
+    )
+
+    chunks_lock: rwlock.RWLockFair = field(
+        default_factory=rwlock.RWLockFair,
+    )
+
+    # known chunkservers
+    chunkservers: list[ServerInfo] = field(
+        default_factory=list,
+    )
+
+    chunkservers_lock: rwlock.RWLockFair = field(
+        default_factory=rwlock.RWLockFair,
+    )
+
+
+def make_master(
+    server: ServerInfo,
+    storage_dir: str,
+) -> Master:
+    return Master(
+        server=server,
+        storage_dir=storage_dir,
+    )
