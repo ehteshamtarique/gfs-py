@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from fastapi import FastAPI, Request
 
 from gfs.common.constants import Namespace, ServerType
+from gfs.common.heartbeat import HeartBeatArgs, HeartBeatReply
 from gfs.common.utils import ServerInfo
 from gfs.master.metadata import Master, make_master
 from gfs.master.periodic import periodic_check
@@ -60,12 +61,13 @@ def create_app(
 
 
 def register_routes(app: FastAPI) -> None:
-    @app.post("/heartbeat")
-    async def heartbeat(request: Request) -> dict:
-        """Chunkserver heartbeat. Real impl: update last_seen, add new
-        chunkservers to master.chunkservers, update ChunkMetadata.servers."""
+    @app.post("/heartbeat", response_model=HeartBeatReply)
+    async def heartbeat(args: HeartBeatArgs) -> HeartBeatReply:
+        """Receive heartbeat from a chunkserver. Real impl: update
+        last_seen, add new chunkservers to master.chunkservers, update
+        ChunkMetadata.servers."""
         # TODO: full heartbeat handler
-        return {"status": "ok"}
+        return HeartBeatReply()
 
     @app.post("/files/create")
     async def create_file(request: Request) -> dict:

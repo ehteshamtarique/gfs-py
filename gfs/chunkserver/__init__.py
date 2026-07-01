@@ -5,6 +5,7 @@ from gfs.chunkserver.chunkserver import (
     load_chunk_metadata,
     load_chunks,
     make_chunkserver,
+    send_heartbeat,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "load_chunk_metadata",
     "load_chunks",
     "make_chunkserver",
+    "send_heartbeat",
 ]

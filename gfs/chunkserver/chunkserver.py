@@ -2,10 +2,13 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import httpx
 from readerwriterlock import rwlock
 
 from gfs.chunkserver.chunk import Chunk
+from gfs.common.client import remote_call
 from gfs.common.constants import ChunkHandle
+from gfs.common.heartbeat import ChunkInfo, HeartBeatArgs
 from gfs.common.utils import ServerInfo
 
 log = logging.getLogger(__name__)
@@ -111,3 +114,39 @@ def load_chunk_metadata(
         return None
 
     return chunk
+
+
+async def send_heartbeat(chunkserver: Chunkserver) -> None:
+    """Build a HeartBeatArgs from the current chunk state and send it to
+    the master. Two-tier locking: read-lock the chunks map, then
+    read-lock each chunk while copying its (version, handle, length)."""
+    chunks_info: list[ChunkInfo] = []
+
+    with chunkserver.chunks_lock.gen_rlock():
+        for chunk in chunkserver.chunks.values():
+            with chunk.lock.gen_rlock():
+                chunks_info.append(
+                    ChunkInfo(
+                        version=chunk.version,
+                        handle=chunk.handle,
+                        length=chunk.length,
+                    )
+                )
+
+    args = HeartBeatArgs(
+        server_info=chunkserver.server,
+        chunks=chunks_info,
+    )
+
+    try:
+        await remote_call(
+            server=chunkserver.master,
+            method="/heartbeat",
+            args=args.model_dump(mode="json"),
+        )
+    except httpx.HTTPError as e:
+        log.warning(
+            "heartbeat to %s failed: %s",
+            chunkserver.master.server_addr,
+            e,
+        )
