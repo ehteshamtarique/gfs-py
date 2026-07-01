@@ -8,6 +8,11 @@ ChunkIndex = int
 Offset = int
 
 
+# Namespace
+
+Namespace = str
+
+
 # Server commons
 
 class ServerType(IntEnum):

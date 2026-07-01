@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 
-from common.exceptions import GFSError
-
 
 @dataclass
 class PathInfo:
@@ -12,7 +10,7 @@ class PathInfo:
         index = self.pathname.rfind("/")
 
         if index == -1:
-            raise GFSError(-1, "No parent")
+            raise Exception("PathInfo.Parent: no parent")
 
         return PathInfo(
             pathname=self.pathname[:index],
