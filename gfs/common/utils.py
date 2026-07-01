@@ -18,7 +18,7 @@ class PathInfo:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ServerInfo:
     server_type: int
     server_addr: str

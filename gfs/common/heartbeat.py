@@ -20,4 +20,4 @@ class HeartBeatArgs(BaseModel):
 
 
 class HeartBeatReply(BaseModel):
-    pass
+    expired_chunks: list[ChunkHandle] = []

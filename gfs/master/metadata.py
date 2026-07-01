@@ -44,6 +44,14 @@ class ChunkMetadata:
         default_factory=dict,
     )
 
+    def add_chunkserver(self, server: ServerInfo) -> None:
+        with self.lock.gen_wlock():
+            self.servers[server] = True
+
+    def remove_chunkserver(self, server: ServerInfo) -> None:
+        with self.lock.gen_wlock():
+            self.servers.pop(server, None)
+
 
 class NamespaceMetadata:
     def __init__(self) -> None:
@@ -166,9 +174,10 @@ class Master:
         default_factory=rwlock.RWLockFair,
     )
 
-    # known chunkservers
-    chunkservers: list[ServerInfo] = field(
-        default_factory=list,
+    # known chunkservers (set, not list — needs O(1) membership tests
+    # during heartbeat processing)
+    chunkservers: set[ServerInfo] = field(
+        default_factory=set,
     )
 
     chunkservers_lock: rwlock.RWLockFair = field(

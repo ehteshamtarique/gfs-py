@@ -62,12 +62,47 @@ def create_app(
 
 def register_routes(app: FastAPI) -> None:
     @app.post("/heartbeat", response_model=HeartBeatReply)
-    async def heartbeat(args: HeartBeatArgs) -> HeartBeatReply:
-        """Receive heartbeat from a chunkserver. Real impl: update
-        last_seen, add new chunkservers to master.chunkservers, update
-        ChunkMetadata.servers."""
-        # TODO: full heartbeat handler
-        return HeartBeatReply()
+    async def heartbeat(request: Request, args: HeartBeatArgs) -> HeartBeatReply:
+        """Receive heartbeat from a chunkserver. Registers new
+        chunkservers, updates ChunkMetadata.servers based on reported
+        versions, and returns the list of chunks the chunkserver should
+        drop (because the master has a newer version)."""
+        state: AppState = request.app.state.gfs
+        master: Master = state.master
+        server = args.server_info
+
+        with master.chunkservers_lock.gen_wlock():
+            if server not in master.chunkservers:
+                log.info("new chunkserver %s joined", server)
+                master.chunkservers.add(server)
+
+        expired_chunks: list = []
+
+        for chunk_info in args.chunks:
+            with master.chunks_lock.gen_wlock():
+                chunk_meta = master.chunks.get(chunk_info.handle)
+
+                if chunk_meta is None:
+                    log.info(
+                        "chunk %s reported by %s but not on master, ignore",
+                        chunk_info.handle,
+                        server,
+                    )
+                    continue
+
+                if chunk_info.version < chunk_meta.version:
+                    log.info(
+                        "chunk %s version %d is stale (master has %d), ignore",
+                        chunk_info.handle,
+                        chunk_info.version,
+                        chunk_meta.version,
+                    )
+                    expired_chunks.append(chunk_info.handle)
+                    chunk_meta.remove_chunkserver(server)
+                else:
+                    chunk_meta.add_chunkserver(server)
+
+        return HeartBeatReply(expired_chunks=expired_chunks)
 
     @app.post("/files/create")
     async def create_file(request: Request) -> dict:
