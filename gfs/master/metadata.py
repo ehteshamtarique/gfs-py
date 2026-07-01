@@ -20,6 +20,10 @@ class FileMetadata:
         default_factory=list,
     )
 
+    lock: rwlock.RWLockFair = field(
+        default_factory=rwlock.RWLockFair,
+    )
+
 
 @dataclass
 class ChunkMetadata:
@@ -40,7 +44,7 @@ class ChunkMetadata:
     )
 
 
-class Namespace:
+class NamespaceMetadata:
     def __init__(self) -> None:
         # path -> file metadata
         self.files: dict[
