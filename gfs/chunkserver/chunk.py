@@ -26,3 +26,16 @@ class Chunk:
 
     def verify(self) -> bool:
         return Checksum(self.checksum).check(self.read())
+
+    def remove_chunk(self) -> None:
+        """Delete the chunk's three on-disk files (data + .version +
+        .checksum). Does NOT touch the chunkserver's in-memory map —
+        the caller (Chunkserver.remove_chunk_and_meta) handles that
+        under its own lock. Errors from individual unlink()s are
+        ignored (the files may already be gone, or never written)."""
+        if self.chunk_path is None:
+            return
+
+        self.chunk_path.unlink(missing_ok=True)
+        (self.chunk_path.parent / f"{self.chunk_path.name}.version").unlink(missing_ok=True)
+        (self.chunk_path.parent / f"{self.chunk_path.name}.checksum").unlink(missing_ok=True)
